@@ -3,6 +3,7 @@
 
 x = ca.Symbol("x")
 y = ca.Symbol("y")
+z = ca.Symbol("z")
 
 print(x+y)
 print(x-y)
