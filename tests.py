@@ -1,5 +1,5 @@
-import CA as ca
-
-print(ca.eval(Symbol("(x+y)*2")))
-
+from CA import Symbol
+y = Symbol("(x+y)*2")
+print(type(y))
+print(Symbol.simplify(y))
 
