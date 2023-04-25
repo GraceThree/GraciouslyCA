@@ -1,7 +1,7 @@
 # Graciously Computer-Algebra
 # Author: Grace Unger
 # Created: 1-8-23
-# Modified: 4-24-23
+# Modified: 4-25-23
 # Stores an input string as a list of tokens
 # and evaluates simple expressions according to a Shunting Yard algorithm
 
@@ -9,10 +9,11 @@ import math
 import re
 
 # Constants: 
-#   OPERATORS: Symbol:Precendence
-#   RESERVED_SYMBOLS: Disallowed names of variables
+#   OPERATORS: Symbol:Precendence, used for Shunting Yard 
+#   RESERVED_SYMBOLS: Strings to be tokenized independently
 #   OPERATOR_FUNCTIONS: Anonymous functions for each predefined operator
 #   OPERATOR_ARGUMENTS: Number of inputs for each predefined operator
+
 class Symbol:
 
     OPERATORS = {"*":3, "-":2, "+":2, "/":3, "^":4,
@@ -36,10 +37,7 @@ class Symbol:
     # Then takes any chunk of digits and adds them as a single token
 
     def __init__(self, inputStr = "", inputTokens = []):
-        if(inputTokens):
-            self.tokens = inputTokens
-            return
-        self.tokens = []
+        self.tokens = inputTokens
         inputStr = re.sub(r" ", "", inputStr)
         initialNumRegex = r"^[0-9]*"
         while(inputStr):
