@@ -30,7 +30,7 @@ class Expression:
 
     OPERATORS = {"*":3, "-":2, "+":2, "/":3, "^":4}
     FUNCTIONS = {"sin":5, "cos":5, "tan":5, "log":5}
-    RESERVED_SYMBOLS=("*", "-", "+", "/", "sin", "cos", "tan", "(", ")", "log")
+    RESERVED_SYMBOLS=("*", "-", "+", "/", "^", "sin", "cos", "tan", "(", ")", "log")
     OPERATOR_FUNCTIONS={"*": lambda x, y: x * y, 
              "+": lambda x, y: x + y,
              "-": lambda x , y: x - y,
@@ -46,33 +46,43 @@ class Expression:
 
     # Takes an input string and tokenizes it into a Queue of formal symbols and numbers
     # First checks to see if the start of the string is a reserved symbol, which are taken as chunks separately
-    # Then checks if it is an alpha character and adds as a single character variable
+    # Then checks if it is an alpha character or number-alpha character #product
     # Then takes any chunk of digits and adds them as a single token
     # Ignores any other characters
     # If a preexisting list of tokens is passed, then any new tokens are appended
 
     def __init__(self, inputStr = "", inputTokens = Queue(0)):
         self.tokens = inputTokens
-        inputStr = re.sub(r" ", "", inputStr)
-        initialNumRegex = r"^\d*\.?\d*"
+        inputStr = re.sub(r"\s", "", inputStr)
+        initialNumRegex = r"^\d+\.?\d*"
         while(inputStr):
-            initialSeg = filter(lambda x: inputStr.startsWith(x), 
-                                self.RESERVED_SYMBOLS)
+            initialSeg = list(filter(lambda x: inputStr.startswith(x), 
+                                    self.RESERVED_SYMBOLS))
             if(initialSeg):
                 self.tokens.put(initialSeg[0])
-                re.sub(rf"^{initialSeg[0]}", "", inputStr)
-            elif(re.match(r"^[a-zA-Z]", inputStr[0])):
+                inputStr = re.sub(rf"^{re.escape(initialSeg[0])}", "", inputStr)
+            elif(re.match(r"^\d*\.?\d*[a-zA-Z]", inputStr[0])):
                 self.tokens.put(inputStr[0])
                 inputStr = inputStr[1:]
             elif(re.match(initialNumRegex, inputStr)):
-                self.tokens.put(re.match(initialNumRegex, inputStr))
-                re.sub(initialNumRegex, "", inputStr)
+                self.tokens.put(re.match(initialNumRegex, inputStr).group(0))
+                inputStr = re.sub(initialNumRegex, "", inputStr)
             else:
-                raise Exception("Invalid character in input string.")
-                break
-            
+                raise Exception(f"Invalid character {inputStr[0]} in input string.")
 
-    # Defining formal operations on Expressions. tempOp
+    def __str__(self):
+        newQueue = Queue(0)
+        out = ""
+        while(not self.tokens.empty()):
+            token = self.tokens.get()
+            out+= token + " "
+            newQueue.put(token)
+        self.tokens = newQueue
+        return out
+
+    # Defining formal operations on Expressions. temp\
+
+    def __add__(self, addend):
         return Expression(f"{self}+{addend}")
 
     def __sub__(self, subtrahend):
@@ -87,7 +97,15 @@ class Expression:
         return Expression(f"-{self}")
 
     def par(exp):
-        return Expression(f"({exp})")    
+        return Expression(f"({exp})")
+
+    def simplify(self): #TODO: Add evaluation step, not just RPN conversion ofc
+        self.linearToRPN()
+        self.evaluate()
+    
+    def evaluate(self):
+
+        return
 
     # Converts a linear arithmetic Expression into Reverse-Polish Notation
     # According to the Shunting-Yard Algorithm
@@ -96,33 +114,49 @@ class Expression:
         outQueue = Queue(0)
         while(not self.tokens.empty()):
             token = self.tokens.get()
-            if re.match(r"^\d*\.?\d*|^[A-Za-z]", token): 
+            if re.match(r"^\d+\.?\d*|^\d*\.?\d*[a-zA-Z]", token): 
                 outQueue.put(token)
+
             elif token in self.FUNCTIONS.keys():
                 opStack.put(token)
+
             elif token in self.OPERATORS.keys():
-                tempOp = opStack.get()
-                while(tempOp in self.OPERATORS.keys() and not tempOp == "(" 
-                      and self.OPERATORS(tempOp)>self.OPERATORS):
-                    outQueue.put(tempOp)
+                if not opStack.empty():
                     tempOp = opStack.get()
+                    while(tempOp in self.OPERATORS.keys() 
+                        and not tempOp == "(" #TODO: Add associative option
+                        and self.OPERATORS[tempOp]>self.OPERATORS[token]
+                        and not opStack.empty()):
+                        outQueue.put(tempOp)
+                        tempOp = opStack.get()
+                    else:
+                        opStack.put(tempOp)
                 opStack.put(token)
+
             elif token == "(":
-                outQueue.put(opStack.get())
+                opStack.put(token)
+
             elif token == ")":
                 tempOp = opStack.get()
                 while(not tempOp == "("):
                     if not opStack.empty():
-                        outQueue.push(tempOp)
+                        outQueue.put(tempOp)
                         tempOp = opStack.get()
                     else:
                         raise Exception("Mismatched parentheses!")
+                    
+                if not opStack.empty():
+                    tempOp = opStack.get()
+                    if tempOp in self.FUNCTIONS.keys():
+                        outQueue.put(tempOp)
+                    else:
+                        opStack.put(tempOp)
             
-            while(not opStack.empty()):
-                tempOp = opStack.get()
-                if tempOp ==  "(" or tempOp == ")":
-                    raise Exception("Mismatched parentheses!")
-                outQueue.put(opStack.get)
+        while(not opStack.empty()):
+            tempOp = opStack.get()
+            if tempOp ==  "(" or tempOp == ")":
+                raise Exception("Mismatched parentheses!")
+            outQueue.put(tempOp)
 
         self.tokens = outQueue
 
