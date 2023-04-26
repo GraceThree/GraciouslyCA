@@ -1,4 +1,4 @@
-from Symbol import Symbol
+from Expression import Symbol
 y = Symbol("(x+y)*2")
 print(type(y))
 print(Symbol.simplify(y))
