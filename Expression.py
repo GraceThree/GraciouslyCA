@@ -112,8 +112,17 @@ class Expression:
 
     def process(self):
         self.__linearToRPN()
+
+    def tempStackPrint(self, stackToPrint):
+        temp = Queue()
+        out = ""
+        while(not stackToPrint.empty()):
+               token = stackToPrint.get()
+               out += token
+               temp.put(token)
     
-    def __evaluateRPN(self):
+    def __evaluateRPN(self): 
+        #TODO: Nope this doesn't work, but you can fix it since you have the proper toRPN implementation now ^_^
         evalStack = LifoQueue()
         outQueue = Queue()
         while(not self.tokens.empty()):
@@ -121,25 +130,27 @@ class Expression:
             if(token in self.OPERATORS.keys()):
                 args = []
                 for i in range(0,self.OPERATOR_VALENCE[token]):
+                    print(f"evalStack status: {evalStack.empty()}")
                     if (not evalStack.empty()):
                         topStack = evalStack.get()
                         args.append(topStack)
                     else:
-                        raise Exception(f"Insufficiant arguments for operator {token}. \nSupplied arguments: {args}, but it required {self.OPERATOR_VALENCE[token]}")
+                        raise Exception(f"Insufficiant arguments for operator \'{token}\'. \n Supplied {len(args)} arguments: {args}, but it required {self.OPERATOR_VALENCE[token]}")
                 if(all(x.isnumeric() for x in args)):
-                    print(args)
                     eval = str(self.FUNCTION_CALLS[token](*list(map(lambda x: float(x),args))))
                     evalStack.put(eval)
                 else:
-                    eval = self.FUNCTION_CALLS[token](*list(map(lambda x: Expression(x), args)))
-                    outQueue.put(eval)
+                    for a in args:
+                        outQueue.put(a)           
             else: 
                 evalStack.put(token)
+            throwAway = Expression("")
+            throwAway.tokens = outQueue
         self.tokens = outQueue
 
     # Converts a linear infix Expression into Reverse-Polish Notation
     # According to the Shunting-Yard Algorithm
-    def __linearToRPN(self): #TODO: Fix this... something doesn't work and I'm not sure what
+    def __linearToRPN(self): #TODO: Fix this. Somewhere you're putting things in opStack rather than outQueue
         opStack = LifoQueue(0)
         outQueue = Queue(0)
         while(not self.tokens.empty()):
@@ -149,18 +160,24 @@ class Expression:
 
             elif token in self.FUNCTIONS.keys():
                 opStack.put(token)
-
             elif token in self.OPERATORS.keys():
                 if not opStack.empty():
                     tempOp = opStack.get()
-                    while(tempOp in self.OPERATORS.keys() 
-                        and not tempOp == "("
-                             and (self.OPERATORS[tempOp]>self.OPERATORS[token] 
+                    while(tempOp in self.OPERATORS.keys()): 
+                        if(not tempOp == "("
+                             and (self.OPERATORS[token]<self.OPERATORS[tempOp] 
                              or (self.OPERATORS[tempOp] == self.OPERATORS[token] and self.OPERATOR_ASSOC[token] == "l"))
-                        and not opStack.empty()):
-                        outQueue.put(tempOp)
-                        tempOp = opStack.get()
-                    else:
+                            and not opStack.empty()):
+                            outQueue.put(tempOp)
+                            opStack.put(token)
+                            break
+                        else:
+                            outQueue.put(tempOp)
+                            if not opStack.empty():
+                                tempOp = opStack.get()
+                            else:
+                                break
+                    if(tempOp == "(" or tempOp == ")"):
                         opStack.put(tempOp)
                 opStack.put(token)
 
