@@ -1,14 +1,28 @@
 from Expression import Expression
 
-# y = Expression("(x+x * y^2)^3")
-# print(f"Original expression: {y}")
-# y.process()
-# print(f"Converted to RPN: {y}")
+# Unit tests for numerical expression inputs
+# Currently: Tests RPN conversion and evaluation separately 
+def testNums():
+    numTest = Expression("(1+1)^2 - 4")
+    numTestTwo = Expression("(1+1)^2 - 4")
 
-z = Expression("(x+y)^2 - (4-6)^3")
-x = z
-x.process()
-print(x)
-z.evaluate()
+    numTest.process()
+    assert str(numTest) == "1 1 + 2 ^ 4 - "
 
-print(f"Simplied RPN: {z}")
+    numTestTwo.evaluate()
+    assert numTestTwo.tokens == "0"
+
+
+# Unit tests for basic symbolic inputs with no numeric simplification needed
+# Currently: Tests processing into RPN and that evaluation doesn't change anything
+def testSymb():
+    varTest = Expression("(x+y)^2 + 3")
+    varTestTwo = Expression("(x+y)^2 + 3")
+
+    varTest.process()
+    assert str(varTest) == "x y + 2 ^ 3 + "
+
+    varTestTwo.evaluate()
+    assert str(varTestTwo) == "x y + 2 ^ 3 "
+
+testNums()

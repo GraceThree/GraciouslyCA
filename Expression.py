@@ -125,28 +125,43 @@ class Expression:
         #TODO: Nope this doesn't work, but you can fix it since you have the proper toRPN implementation now ^_^
         evalStack = LifoQueue()
         outQueue = Queue()
-        while(not self.tokens.empty()):
+        print(f"Current RPN: {self}")
+        while not self.tokens.empty():
             token = self.tokens.get()
-            if(token in self.OPERATORS.keys()):
+            print(token)
+            if token in self.OPERATORS.keys():
                 args = []
-                for i in range(0,self.OPERATOR_VALENCE[token]):
-                    print(f"evalStack status: {evalStack.empty()}")
-                    if (not evalStack.empty()):
+                for i in range(0, self.OPERATOR_VALENCE[token]):
+                    if not evalStack.empty():
                         topStack = evalStack.get()
                         args.append(topStack)
                     else:
                         raise Exception(f"Insufficiant arguments for operator \'{token}\'. \n Supplied {len(args)} arguments: {args}, but it required {self.OPERATOR_VALENCE[token]}")
-                if(all(x.isnumeric() for x in args)):
-                    eval = str(self.FUNCTION_CALLS[token](*list(map(lambda x: float(x),args))))
+                print(f"arguments for {token} are {args}")
+                if all(bool(re.match(r"^\d+\.?\d*", x)) for x in args):
+                    eval = str(self.FUNCTION_CALLS[token](*list(map(lambda x: float(x), args))[::-1]))
                     evalStack.put(eval)
+                    print(f"{eval} goes to evalStack as the evaluation of {args} under {token}")
                 else:
-                    for a in args:
-                        outQueue.put(a)           
-            else: 
+                    evalStack.put(args)
+                    print(f"Nonnumeric arguments {args} goes to evalStack as a unit")
+
+            else:
                 evalStack.put(token)
-            throwAway = Expression("")
-            throwAway.tokens = outQueue
+                print(f"nonOperator {token} goes to evalStack")
+        
+        err = ""
+        while not evalStack.empty:
+            temp = evalStack.get()
+            err += temp + ", "
+        
+        if err:
+            raise Exception("Insufficient operators, unaccounted for terms: {err}")
+        
+        self.__cleanNums(outQueue)
+        
         self.tokens = outQueue
+        print(self)
 
     # Converts a linear infix Expression into Reverse-Polish Notation
     # According to the Shunting-Yard Algorithm
@@ -207,4 +222,14 @@ class Expression:
             outQueue.put(tempOp)
 
         self.tokens = outQueue
+
+    def __cleanNums(self, q: Queue):
+        newQ = Queue()
+        while not q.empty():
+            temp = q.get()
+            if str(temp).isnumeric():
+                newQ.put(int(temp))
+            else:
+                newQ.put(temp)
+        q = newQ
 
