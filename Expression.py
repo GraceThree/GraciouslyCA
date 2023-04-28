@@ -150,18 +150,17 @@ class Expression:
                 evalStack.put(token)
                 print(f"nonOperator {token} goes to evalStack")
         
-        err = ""
-        while not evalStack.empty:
+        if not evalStack.empty():
             temp = evalStack.get()
-            err += temp + ", "
+            if evalStack.empty():
+                outQueue.put(temp)
+            else:
+                raise Exception(f"Unbound argument {temp}, operator valence mismatch")
         
-        if err:
-            raise Exception("Insufficient operators, unaccounted for terms: {err}")
-        
-        self.__cleanNums(outQueue)
-        
+        outQueue = self.__cleanNums(outQueue)
+
         self.tokens = outQueue
-        print(self)
+        print(f"Expression after evaluation: {self}")
 
     # Converts a linear infix Expression into Reverse-Polish Notation
     # According to the Shunting-Yard Algorithm
@@ -227,9 +226,9 @@ class Expression:
         newQ = Queue()
         while not q.empty():
             temp = q.get()
-            if str(temp).isnumeric():
-                newQ.put(int(temp))
+            if bool(re.match(r"^\d+\.?0*", temp)):
+                newQ.put(str(int(float(temp))))
             else:
                 newQ.put(temp)
-        q = newQ
+        return newQ
 
