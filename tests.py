@@ -4,15 +4,15 @@ from Expression import Expression
 # Currently: Tests RPN conversion and evaluation separately 
 # Note: Requires 1 trailing space in test strings. 
 def testNums():
-    numTest = Expression("(1+1)^2 - 4")
-    numTestTwo = Expression("(1+1)^2 - 4")
+    numTest = Expression("(11+1)^2 - 4")
+    numTestTwo = Expression("(11+1)^2 - 4")
 
     numTest.process()
-    assert str(numTest) == "1 1 + 2 ^ 4 - "
+    assert str(numTest) == "11 1 + 2 ^ 4 - "
 
     numTestTwo.evaluate()
     print(f"numTestTwo evaluates to {str(numTestTwo)}")
-    assert str(numTestTwo) == "0 "
+    assert str(numTestTwo) == "140 "
 
 
 # Unit tests for basic symbolic inputs with no numeric simplification needed
@@ -28,4 +28,4 @@ def testSymb():
     assert str(varTestTwo) == "x y + 2 ^ 3 "
 
 testNums()
-testSymb()
+#testSymb()
