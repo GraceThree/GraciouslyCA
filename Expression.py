@@ -150,7 +150,7 @@ class Expression:
 
     # Converts a linear infix Expression into Reverse-Polish Notation
     # According to the Shunting-Yard Algorithm
-    def __linearToRPN(self): #TODO: Fix this. Somewhere you're putting things in opStack rather than outQueue
+    def __linearToRPN(self):
         opStack = LifoQueue(0)
         outQueue = Queue(0)
         while(not self.tokens.empty()):
