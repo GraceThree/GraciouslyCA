@@ -143,9 +143,9 @@ class Expression:
                     evalStack.put(eval)
                     print(f"{eval} goes to evalStack as the evaluation of {args} under {token}")
                 else:
-                    evalStack.put(args)
-                    print(f"Nonnumeric arguments {args} goes to evalStack as a unit")
-
+                    for a in args[::-1]:
+                        outQueue.put(a)
+                    outQueue.put(token)
             else:
                 evalStack.put(token)
                 print(f"nonOperator {token} goes to evalStack")
@@ -155,6 +155,7 @@ class Expression:
             if evalStack.empty():
                 outQueue.put(temp)
             else:
+                print(evalStack.get())
                 raise Exception(f"Unbound argument {temp}, operator valence mismatch")
         
         outQueue = self.__cleanNums(outQueue)
