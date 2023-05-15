@@ -51,6 +51,7 @@ class NumTerm(Term):
         numVal = float(label)
         if abs(numVal - round(numVal)) < 10 ** -10:
             self.value = round(numVal)
+            self.label = f"{self.value}"
         else: self.value = numVal
 
     def __add__(self, addend):
@@ -75,7 +76,7 @@ class NumTerm(Term):
 class Constant(NumTerm):
     def __init__(self, label):
         super().__init__(label)
-        
+
 
 class VarTerm(Term):
 
@@ -97,11 +98,25 @@ class VarTerm(Term):
             expTerm1 = self.makeTerm(exp1)
             expTerm2 = self.makeTerm(exp2)
             newExp = expTerm1 + expTerm2
-            if newExp.label.isnumeric(): newExp.label = int(newExp.label)
+            if re.match(r"\d+\.0*$"): newExp.label = str(int(newExp.label))
             return Term(f"{base} ^ {newExp.label}")
         return VarTerm(f"{self}{factor}")
-    
-    def __truediv(self, factor):
+
+#Divides one variable term by another. Essentially the same as __mul__
+    def __truediv__(self, divisor):
         varRegex = r"^[a-zA-Z]"
-        expRegex = r"\^*"
-        base
+        expRegex = r"\^.*"
+        base = re.search(varRegex, self.label).group(0)
+        divBase = re.search(varRegex, divisor.label).group(0)
+        if base == None or divBase == None:
+            raise Exception(f"{self} or {divisor} is not an alphabetic variable")
+        if base == divBase:
+            exp1 = re.search(expRegex, self.label)
+            exp2 = re.search(expRegex, divisor.label)
+            [exp1, exp2] = map(lambda x: 1 if x == None else x.group(0)[1:], [exp1, exp2])
+            expTerm1 = self.makeTerm(exp1)
+            expTerm2 = self.makeTerm(exp2)
+            newExp = expTerm1 - expTerm2
+            if newExp.label.isnumeric(): newExp.label = int(newExp.label)
+            return Term(f"{base} ^ {newExp.label}")
+        return VarTerm(f"{self}{divisor}")
