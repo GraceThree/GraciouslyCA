@@ -3,8 +3,7 @@
 # Author: Grace Unger
 # Created: 5-4-23
 
-# Should be essentailly invisible to everything else
-
+# Contains a few methods that are universal to all symbolic objects. Also contains parens since they work differently and don't need any of the structure of Operators or Terms
 
 class GSymbol:
     def __init__(self, label):
