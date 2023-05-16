@@ -55,3 +55,6 @@ def test_varOps():
     assert getOutTerm(times, args).label == "2x"
     assert getOutTerm(div, args).label == "x / 2"
     assert getOutTerm(pow, args).label == "x ^ 2"
+
+def basicExpTests():
+    

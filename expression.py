@@ -10,7 +10,7 @@ import re
 from queue import LifoQueue, Queue
 from goperator import GOperator
 from term import Term, VarTerm, NumTerm, Constant
-from gsymbol import GSymbol
+from gsymbol import GSymbol, Paren
 
 
 # TODO: Complete refector - treating it as a str list is actually really annoying, when instead we could really OOP it up into terms and operators, and have the expression input just parse that
@@ -42,7 +42,7 @@ class Expression:
     def __init__(self, inputStr):
         self.tokens = Queue()
         inputStr = re.sub(r"\s", "", inputStr)
-        inputStr = re.sub(r"^\-", "0 - ", inputStr)
+        inputStr = re.sub(r"^\-", "0-", inputStr)
         initialNumRegex = r"^\d+\.?\d*"
         numVarRegex = r"^\d*\.?\d*[a-zA-Z]?"
         while(inputStr):
@@ -52,16 +52,19 @@ class Expression:
                     self.tokens.put(GOperator(initialSeg[0]))
                 elif initialSeg[0] in Constant.CONSTANTS.keys():
                     self.tokens.put(Constant(initialSeg[0]))
+                elif initialSeg[0] in ["(", ")"]:
+                    inputStr.put(Paren(initialSeg))
                 else:
                     raise Exception("Somehow this is a reserved symbol but not either kind of reserved symbol. You've fucked up grace.")
             elif(re.match(numVarRegex, inputStr)):
                 self.tokens.put(Term(re.search(numVarRegex, inputStr).group(0)))
                 inputStr = re.sub(numVarRegex, "", inputStr)
             elif(re.match(initialNumRegex, inputStr)):
-                self.tokens.put(NumTerm(re.match(initialNumRegex, inputStr).group(0))
+                self.tokens.put(NumTerm(re.match(initialNumRegex, inputStr).group(0)))
                 inputStr = re.sub(initialNumRegex, "", inputStr)
             else:
                 raise Exception(f"Invalid character {inputStr[0]} in input string.")
+        self.process
 
     def __str__(self):
         newQueue = Queue(0)
@@ -76,44 +79,44 @@ class Expression:
     # Defining formal operations on Expressions
 
     def __add__(self, addend):
-        return Expression(f"{self} {addend} +")
+        return Expression(f"{self} + {addend}")
 
     def __sub__(self, subtrahend):
-        return Expression(f"{self} {subtrahend} -")
+        return Expression(f"{self} - {subtrahend}")
 
     def __mul__(self, factor):
-        return Expression(f"{self} {factor} *")
+        return Expression(f"({self}) * ({factor})")
     
     def __truediv__(self, divisor):
-        return Expression(f"{self} {divisor} /")
+        return Expression(f"({self}) / ({divisor})")
     
     def __neg__(self):
-        return Expression(f"-{self}")
+        return Expression(f"-({self})")
     
     def __pow__(self, exponent):
-        return Expression(f"{self} {exponent} ^")
+        return Expression(f"({self}) ^ {exponent}")
 
-    def par(exp):
-        return Expression(f"({exp})")
+    def par(expr):
+        return Expression(f"({expr})")
 
     def evaluate(self):
-        self.__linearToRPN()
         self.__evaluateRPN()
 
     def process(self):
         self.__linearToRPN()
 
-    def tempStackPrint(self, stackToPrint):
+    def __stackToStr(self, stackToPrint):
         temp = Queue()
         out = ""
         while(not stackToPrint.empty()):
                token = stackToPrint.get()
                out += token
                temp.put(token)
-    
+        stackToPrint = temp
+        return out
+
     def __evaluateRPN(self): 
-        #TODO: Nope this doesn't work, but you can fix it since you have the proper toRPN implementation now ^_^
-        # The issues currently come from how youhandle symbolic expressions, because there's no build in good way to handle the number of args
+        #TODO: Rebuild about new symbol implementation
         evalStack = LifoQueue()
         outQueue = Queue()
 
@@ -135,7 +138,6 @@ class Expression:
                         raise Exception(f"Insufficient arguments for token {token}. \nArguments supplied: {args[::-1]}")
                     
                 args = args[::-1]
-                print(f"args for {token} are {args}")                
                 #Check for any elements which have no nested weirdness and are floats
                 if(all(type(x) == str for x in args)
                     and all(bool(re.match("^\d+\.?\d*", y)) for y in args)):
@@ -166,18 +168,18 @@ class Expression:
         outQueue = Queue(0)
         while(not self.tokens.empty()):
             token = self.tokens.get()
-            if re.match(r"^\d+\.?\d*|^\d*\.?\d*[a-zA-Z]", token): 
+            if issubclass(type(token), Term):
                 outQueue.put(token)
 
-            elif token in self.FUNCTIONS.keys():
+            elif token in GOperator.FUNCTIONS:
                 opStack.put(token)
-            elif token in self.OPERATORS.keys():
+            elif token in GOperator.OPERATORS:
                 if not opStack.empty():
                     tempOp = opStack.get()
-                    while(tempOp in self.OPERATORS.keys()): 
+                    while(tempOp in GOperator.OPERATORS): 
                         if(not tempOp == "("
-                             and (self.OPERATORS[token]<self.OPERATORS[tempOp] 
-                             or (self.OPERATORS[tempOp] == self.OPERATORS[token] and self.OPERATOR_ASSOC[token] == "l"))
+                             and (GOperator.OPERATOR_PRECEDENCE[token]<GOperator.OPERATOR_PRECEDENCE[tempOp] 
+                             or (GOperator.OPERATOR_PRECEDENCE[tempOp] == GOperator.OPERATOR_PRECEDENCE[token] and GOperator.OPERATOR_ASSOC[token] == "l"))
                             and not opStack.empty()):
                             outQueue.put(tempOp)
                             opStack.put(token)
@@ -188,35 +190,34 @@ class Expression:
                                 tempOp = opStack.get()
                             else:
                                 break
-                    if(tempOp == "(" or tempOp == ")"):
+                    if type(tempOp) == Paren:
                         opStack.put(tempOp)
                 opStack.put(token)
 
-            elif token == "(":
-                opStack.put(token)
-
-            elif token == ")":
-                tempOp = opStack.get()
-                while(not tempOp == "("):
-                    if not opStack.empty():
-                        outQueue.put(tempOp)
-                        tempOp = opStack.get()
-                    else:
-                        raise Exception("Mismatched parentheses!")
-                    
-                if not opStack.empty():
+            elif type(token) == Paren:
+                if token.side == "l":
+                    opStack.put(token)
+                else:
                     tempOp = opStack.get()
-                    if tempOp in self.FUNCTIONS.keys():
-                        outQueue.put(tempOp)
-                    else:
-                        opStack.put(tempOp)
+                    while not type(tempOp == Paren) and tempOp.side == "l":
+                        if not opStack.empty():
+                            outQueue.put(tempOp)
+                            tempOp = opStack.get()
+                        else:
+                            raise Exception("Mismatched parentheses!")
+                        
+                    if not opStack.empty():
+                        tempOp = opStack.get()
+                        if tempOp in GOperator.OPERATORS.keys():
+                            outQueue.put(tempOp)
+                        else:
+                            opStack.put(tempOp)
             
-        while(not opStack.empty()):
+        while not opStack.empty():
             tempOp = opStack.get()
-            if tempOp ==  "(" or tempOp == ")":
+            if type(tempOp == Paren):
                 raise Exception("Mismatched parentheses!")
             outQueue.put(tempOp)
-
         self.tokens = outQueue
 
     def __cleanNums(self, q: Queue):
