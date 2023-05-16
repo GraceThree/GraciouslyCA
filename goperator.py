@@ -37,5 +37,4 @@ class GOperator(gsymbol.GSymbol):
     def act(self, args):
         if not len(args) == self.valence:
             raise Exception(f"Too many arguments passed to operator {self}. \nExpected {self.valence} but {len(args)} arguments were passed: \n{args}") 
-        print(self.action(*args).value)
         return self.action(*args)
