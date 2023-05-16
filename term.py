@@ -9,6 +9,7 @@
 import math
 import gsymbol
 import re
+from expression import Expression
 
 #   label - string representation of the term. Potentially more complicated than a single symbol. This is parsed out as needed when evaluated as an Expression
 #   equalTerms - all other known terms equal to this. Used for simplification rules
@@ -30,6 +31,7 @@ class Term(gsymbol.GSymbol):
 
 #Multiplies two abstract terms together. Checks to see if two have the same base, and adds the exponents in this case. Currently cannot handle exponents contained within parens, so 
 #TODO: Add handling for stuff like (x^2+3) * x, currently should output x ^ 6
+#TODO: Cleanly support outputting directly as Expression
     def __mul__(self, factor):
         expRegex = r"\^.*"
         base = re.search(r"^.*\^?", self.label).group(0)
@@ -46,7 +48,7 @@ class Term(gsymbol.GSymbol):
             newExp = expTerm1 + expTerm2
             if re.match(r"^\d+\.?0*$", newExp.label): newExp.label = str(int(newExp.label))
             if re.match(r"^1\.?0*$", newExp.label): return Term(f"{base}")
-            return Term(f"{base} ^ {newExp.label}")
+            return Expression(f"{base} ^ {newExp.label}")
         if type(factor) == NumTerm: return Term(f"{factor}{self}")
         return Term(f"{self}{factor}")
 

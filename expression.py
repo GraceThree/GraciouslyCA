@@ -2,8 +2,7 @@
 # Base class to manipulate Symbolic Expressions
 # Author: Grace Unger
 # Created: 1-8-23
-# Stores an input string as a list of tokens
-# and evaluates simple expressions according to a Shunting Yard algorithm
+# Parses an input string into a queue of tokens and longer expressions
 
 import math
 import re
@@ -50,13 +49,34 @@ class Expression:
             if(initialSeg):
                 if initialSeg[0] in GOperator.OPERATOR_FUNCTIONS.keys():
                     self.tokens.append(GOperator(initialSeg[0]))
+                    inputStr = inputStr[1:]
+
                 elif initialSeg[0] in Constant.CONSTANTS.keys():
                     self.tokens.append(Constant(initialSeg[0]))
-                elif initialSeg[0] in ["(", ")"]:
-                    self.tokens.append(Paren(initialSeg))
+                    inputStr = inputStr[1:]
+
+                elif initialSeg[0] == "(":
+                    parenCount = 0
+                    subExpLength = 0
+                    for c in inputStr:
+                        subExpLength += 1
+
+                        if c == "(": parenCount += 1
+                        elif c == ")": 
+                            parenCount -= 1
+
+                        if parenCount <= 0:
+                            subExp = Expression(inputStr[1:subExpLength-1])
+                            subExp.tokens.appendleft(Paren("("))
+                            subExp.tokens.append(Paren(")"))
+                            self.tokens.append(subExp)
+                            break
+
+                    inputStr = inputStr[subExpLength + 1:]
+
                 else:
+                    print(initialSeg[0])
                     raise Exception("Somehow this is a reserved symbol but not some kind of reserved symbol. You've fucked up grace.")
-                inputStr = inputStr[1:]
             elif(re.match(numVarRegex, inputStr)):
                 self.tokens.append(Term(re.search(numVarRegex, inputStr).group(0)))
                 inputStr = re.sub(numVarRegex, "", inputStr)
@@ -67,13 +87,16 @@ class Expression:
                 raise Exception(f"Invalid character {inputStr[0]} in input string.")
         #self.process
 
-    def __repr__(self):
+    def __str__(self):
         out = ""
         newQueue= copy.deepcopy(self.tokens)
         while newQueue:
             token = newQueue.popleft()
-            out+= f"{str(token)} "
-        return out[:-1]
+            if type(token) == GOperator and token.label in GOperator.OPERATORS:
+                out += f" {str(token)} "
+            else: out+= f"{str(token)}"
+            print(type(token))
+        return out
 
     # Defining formal operations on Expressions
 
@@ -82,14 +105,26 @@ class Expression:
         out.append(GOperator("+"))
         return Expression(inputTokens=(out + addend.tokens))
 
-    def __sub__(self, subtrahend):
-        return Expression(f"{self} - {subtrahend}")
-
-    def __mul__(self, factor):
-        return Expression(f"({self}) * ({factor})")
+    def __sub__(self, addend):
+        out = copy.deepcopy(self.tokens)
+        out.append(GOperator("-"))
+        return Expression(inputTokens=(out + addend.tokens))
     
-    def __truediv__(self, divisor):
-        return Expression(f"({self}) / ({divisor})")
+    def __mul__(self, addend):
+        out = copy.deepcopy(self.tokens)
+        out2 = copy.deepcopy(addend.tokens)
+        self.par(out)
+        self.par(out2)
+        out.append(GOperator("*"))
+        return Expression(inputTokens=(out + out2))
+    
+    def __truediv__(self, addend):
+        out = copy.deepcopy(self.tokens)
+        out2 = copy.deepcopy(addend.tokens)
+        self.par(out)
+        self.par(out2)
+        out.append(GOperator("/"))
+        return Expression(inputTokens=(out + out2))
     
     def __neg__(self):
         return Expression(f"-({self})")
@@ -97,8 +132,10 @@ class Expression:
     def __pow__(self, exponent):
         return Expression(f"({self}) ^ {exponent}")
 
-    def par(expr):
-        return Expression(f"({expr})")
+    def par(self, q):
+        q.appendleft(Paren("("))
+        q.append(Paren(")"))
+        return q
 
     def evaluate(self):
         self.__evaluateRPN()
@@ -162,73 +199,75 @@ class Expression:
         self.tokens = outQueue
         print(f"Expression after evaluation: {self}")
 
-    # Converts a linear infix Expression into Reverse-Polish Notation
-    # According to the Shunting-Yard Algorithm
-    def __linearToRPN(self):
-        opStack = deque()
-        outQueue = deque()
-        while self.tokens:
-            token = self.tokens.popleft()
-            if issubclass(type(token), Term):
-                outQueue.append(token)
+    #DEPRECATED IN FAVOR OF SUBEXPRESSION EVALUATION
 
-            elif token in GOperator.FUNCTIONS:
-                opStack.append(token)
-            elif token in GOperator.OPERATORS:
-                if opStack:
-                    tempOp = opStack.popleft()
-                    while(tempOp in GOperator.OPERATORS): 
-                        if(not tempOp == "("
-                             and (GOperator.OPERATOR_PRECEDENCE[token]<GOperator.OPERATOR_PRECEDENCE[tempOp] 
-                             or (GOperator.OPERATOR_PRECEDENCE[tempOp] == GOperator.OPERATOR_PRECEDENCE[token] and GOperator.OPERATOR_ASSOC[token] == "l"))
-                            and opStack):
-                            outQueue.append(tempOp)
-                            opStack.append(token)
-                            break
-                        else:
-                            outQueue.append(tempOp)
-                            if opStack:
-                                tempOp = opStack.popleft()
-                            else:
-                                break
-                    if type(tempOp) == Paren:
-                        opStack.append(tempOp)
-                opStack.append(token)
+    # # Converts a linear infix Expression into Reverse-Polish Notation
+    # # According to the Shunting-Yard Algorithm
+    # def __linearToRPN(self):
+    #     opStack = deque()
+    #     outQueue = deque()
+    #     while self.tokens:
+    #         token = self.tokens.popleft()
+    #         if issubclass(type(token), Term):
+    #             outQueue.append(token)
 
-            elif type(token) == Paren:
-                if token.side == "l":
-                    opStack.append(token)
-                else:
-                    tempOp = opStack.popleft()
-                    while not type(tempOp == Paren) and tempOp.side == "l":
-                        if opStack:
-                            outQueue.append(tempOp)
-                            tempOp = opStack.popleft()
-                        else:
-                            raise Exception("Mismatched parentheses!")
+    #         elif token in GOperator.FUNCTIONS:
+    #             opStack.append(token)
+    #         elif token in GOperator.OPERATORS:
+    #             if opStack:
+    #                 tempOp = opStack.popleft()
+    #                 while(tempOp in GOperator.OPERATORS): 
+    #                     if(not tempOp == "("
+    #                          and (GOperator.OPERATOR_PRECEDENCE[token]<GOperator.OPERATOR_PRECEDENCE[tempOp] 
+    #                          or (GOperator.OPERATOR_PRECEDENCE[tempOp] == GOperator.OPERATOR_PRECEDENCE[token] and GOperator.OPERATOR_ASSOC[token] == "l"))
+    #                         and opStack):
+    #                         outQueue.append(tempOp)
+    #                         opStack.append(token)
+    #                         break
+    #                     else:
+    #                         outQueue.append(tempOp)
+    #                         if opStack:
+    #                             tempOp = opStack.popleft()
+    #                         else:
+    #                             break
+    #                 if type(tempOp) == Paren:
+    #                     opStack.append(tempOp)
+    #             opStack.append(token)
+
+    #         elif type(token) == Paren:
+    #             if token.side == "l":
+    #                 opStack.append(token)
+    #             else:
+    #                 tempOp = opStack.popleft()
+    #                 while not type(tempOp == Paren) and tempOp.side == "l":
+    #                     if opStack:
+    #                         outQueue.append(tempOp)
+    #                         tempOp = opStack.popleft()
+    #                     else:
+    #                         raise Exception("Mismatched parentheses!")
                         
-                    if opStack:
-                        tempOp = opStack.popleft()
-                        if tempOp in GOperator.OPERATORS.keys():
-                            outQueue.append(tempOp)
-                        else:
-                            opStack.append(tempOp)
+    #                 if opStack:
+    #                     tempOp = opStack.popleft()
+    #                     if tempOp in GOperator.OPERATORS.keys():
+    #                         outQueue.append(tempOp)
+    #                     else:
+    #                         opStack.append(tempOp)
             
-        while opStack:
-            tempOp = opStack.popleft()
-            if type(tempOp == Paren):
-                raise Exception("Mismatched parentheses!")
-            outQueue.append(tempOp)
-        self.tokens = outQueue
+    #     while opStack:
+    #         tempOp = opStack.popleft()
+    #         if type(tempOp == Paren):
+    #             raise Exception("Mismatched parentheses!")
+    #         outQueue.append(tempOp)
+    #     self.tokens = outQueue
 
-    def __cleanNums(self, q: deque):
-        newQ = deque()
-        while q:
-            temp = q.popleft()
-            print(f"temp is {temp} in __cleanNums")
-            if bool(re.match(r"^\d+\.?0*", temp)):
-                newQ.append(str(int(float(temp))))
-            else:
-                newQ.append(temp)
-        return newQ
+    # def __cleanNums(self, q: deque):
+    #     newQ = deque()
+    #     while q:
+    #         temp = q.popleft()
+    #         print(f"temp is {temp} in __cleanNums")
+    #         if bool(re.match(r"^\d+\.?0*", temp)):
+    #             newQ.append(str(int(float(temp))))
+    #         else:
+    #             newQ.append(temp)
+    #     return newQ
 
