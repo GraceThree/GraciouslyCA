@@ -7,6 +7,7 @@ import math
 import term
 import gsymbol
 
+#Graciously-Operator. Named to avoid collision with preexisting operator object
 class GOperator(gsymbol.GSymbol):
 
     OPERATOR_FUNCTIONS={
@@ -27,6 +28,9 @@ class GOperator(gsymbol.GSymbol):
     OPERATOR_PRECEDENCE = {
         "*":3, "-":2, "+":2, "/":3, "^":4, 
         "sin":5, "cos":5, "tan":5, "log":5}
+
+    OPERATOR_ASSOC = {"*":"l", "-":"l", "+":"l", "/":"l", "^":"r"}
+
     
     def __init__(self, label):
         super().__init__(label)

@@ -8,13 +8,14 @@
 import math
 import re
 from queue import LifoQueue, Queue
+from goperator import GOperator
+from term import Term, VarTerm, NumTerm, Constant
+from gsymbol import GSymbol
 
 
 # TODO: Complete refector - treating it as a str list is actually really annoying, when instead we could really OOP it up into terms and operators, and have the expression input just parse that
 
 # TODO: Refactor formal operations to allow for mixed String and [token] inputs
-# TODO: Add check in token input for __init__ that only valid tokens are passed
-# TODO: Account for 2x type tokens with implicit multiplication
 # TODO: [long-term] make a front-end UI in JS with:
 #               LaTeX integration
 #               Basic 2d graphing capabilities
@@ -28,29 +29,12 @@ from queue import LifoQueue, Queue
 #   OPERATOR_ARGUMENTS: Number of inputs for each predefined operator
 
 class Expression:
-    OPERATORS = {"*":3, "-":2, "+":2, "/":3, "^":4}
-    FUNCTIONS = {"sin":5, "cos":5, "tan":5, "log":5}
-    CONSTANTS = {"pi", "e"}
     RESERVED_SYMBOLS=("*", "-", "+", "/", "^", "(", ")",
-                      "sin", "cos", "tan", "log")
-    FUNCTION_CALLS={
-             "*": lambda x, y: x * y, 
-             "+": lambda x, y: x + y,
-             "-": lambda x, y: x - y,
-             "/": lambda x, y: x / y,
-             "^": lambda x, y: x ** y,
-             "sin": lambda x: math.sin(x),
-             "cos": lambda x: math.cos(x),
-             "tan": lambda x :math.tan(x), 
-             "log": lambda x: math.log(x)}
-    #TODO: Add exp, refactor some other stuff to make it work bc it's a little weird
-    OPERATOR_VALENCE = {"*":2, "-":2, "+":2, "/":2, "^":2, 
-                        "sin":1, "cos":1, "tan":1, "log":1}
-    OPERATOR_ASSOC = {"*":"l", "-":"l", "+":"l", "/":"l", "^":"r"}
+                      "sin", "cos", "tan", "log", "pi", "e")
 
     # Takes an input string and tokenizes it into a Queue of GSymbols 
-    # First checks to see if the start of the string is a reserved symbol, which are taken as chunks separately
-    # Then checks if it is an alpha character or number-alpha character #product
+    # First checks to see if the start of the string is a reserved symbol, which are taken as chunks separately, turned into either operators, parens, or constants
+    # Then checks if it is an alpha character or number-alpha product to treat as a variable or unit term
     # Then takes any chunk of digits and adds them as a single token
     # Ignores any other characters
     # If a preexisting list of tokens is passed, then any new tokens are appended
@@ -60,17 +44,21 @@ class Expression:
         inputStr = re.sub(r"\s", "", inputStr)
         inputStr = re.sub(r"^\-", "0 - ", inputStr)
         initialNumRegex = r"^\d+\.?\d*"
+        numVarRegex = r"^\d*\.?\d*[a-zA-Z]?"
         while(inputStr):
-            initialSeg = list(filter(lambda x: inputStr.startswith(x), 
-                                    self.RESERVED_SYMBOLS))
+            initialSeg = list(filter(lambda x: inputStr.startswith(x), self.RESERVED_SYMBOLS))
             if(initialSeg):
-                self.tokens.put(initialSeg[0])
-                inputStr = re.sub(rf"^{re.escape(initialSeg[0])}", "", inputStr)
-            elif(re.match(r"^\d*\.?\d*[a-zA-Z]", inputStr[0])):
-                self.tokens.put(inputStr[0])
-                inputStr = inputStr[1:]
+                if initialSeg[0] in GOperator.OPERATOR_FUNCTIONS.keys():
+                    self.tokens.put(GOperator(initialSeg[0]))
+                elif initialSeg[0] in Constant.CONSTANTS.keys():
+                    self.tokens.put(Constant(initialSeg[0]))
+                else:
+                    raise Exception("Somehow this is a reserved symbol but not either kind of reserved symbol. You've fucked up grace.")
+            elif(re.match(numVarRegex, inputStr)):
+                self.tokens.put(Term(re.search(numVarRegex, inputStr).group(0)))
+                inputStr = re.sub(numVarRegex, "", inputStr)
             elif(re.match(initialNumRegex, inputStr)):
-                self.tokens.put(re.match(initialNumRegex, inputStr).group(0))
+                self.tokens.put(NumTerm(re.match(initialNumRegex, inputStr).group(0))
                 inputStr = re.sub(initialNumRegex, "", inputStr)
             else:
                 raise Exception(f"Invalid character {inputStr[0]} in input string.")
@@ -80,7 +68,7 @@ class Expression:
         out = ""
         while(not self.tokens.empty()):
             token = self.tokens.get()
-            out+= token + " "
+            out+= str(token)
             newQueue.put(token)
         self.tokens = newQueue
         return out
