@@ -21,6 +21,9 @@ class GOperator(gsymbol.GSymbol):
         "tan": lambda x :math.tan(x), 
         "log": lambda x: math.log(x)}
     
+    OPERATORS = ["*", "+", "-", "/", "^"]
+    FUNCTION  = ["sin", "cos", "tan", "log"]
+    
     OPERATOR_VALENCE = {
         "*":2, "-":2, "+":2, "/":2, "^":2, 
         "sin":1, "cos":1, "tan":1, "log":1}

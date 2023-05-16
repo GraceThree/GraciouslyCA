@@ -12,7 +12,7 @@ class GSymbol:
     def __str__(self):
         return self.label
     
-class paren(GSymbol):
+class Paren(GSymbol):
     def __init__(self, label):
         super().__init__(label)
         if self.label == "(":
