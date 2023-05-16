@@ -22,7 +22,7 @@ class GOperator(gsymbol.GSymbol):
         "log": lambda x: math.log(x)}
     
     OPERATORS = ["*", "+", "-", "/", "^"]
-    FUNCTION  = ["sin", "cos", "tan", "log"]
+    FUNCTIONS  = ["sin", "cos", "tan", "log"]
     
     OPERATOR_VALENCE = {
         "*":2, "-":2, "+":2, "/":2, "^":2, 

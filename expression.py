@@ -7,11 +7,11 @@
 
 import math
 import re
-from queue import LifoQueue, Queue
+from collections import deque
 from goperator import GOperator
 from term import Term, VarTerm, NumTerm, Constant
 from gsymbol import GSymbol, Paren
-
+import copy
 
 # TODO: Complete refector - treating it as a str list is actually really annoying, when instead we could really OOP it up into terms and operators, and have the expression input just parse that
 
@@ -39,8 +39,8 @@ class Expression:
     # Ignores any other characters
     # If a preexisting list of tokens is passed, then any new tokens are appended
 
-    def __init__(self, inputStr):
-        self.tokens = Queue()
+    def __init__(self, inputStr:str = "", inputTokens:deque = deque()):
+        self.tokens = deque() + inputTokens
         inputStr = re.sub(r"\s", "", inputStr)
         inputStr = re.sub(r"^\-", "0-", inputStr)
         initialNumRegex = r"^\d+\.?\d*"
@@ -49,37 +49,38 @@ class Expression:
             initialSeg = list(filter(lambda x: inputStr.startswith(x), self.RESERVED_SYMBOLS))
             if(initialSeg):
                 if initialSeg[0] in GOperator.OPERATOR_FUNCTIONS.keys():
-                    self.tokens.put(GOperator(initialSeg[0]))
+                    self.tokens.append(GOperator(initialSeg[0]))
                 elif initialSeg[0] in Constant.CONSTANTS.keys():
-                    self.tokens.put(Constant(initialSeg[0]))
+                    self.tokens.append(Constant(initialSeg[0]))
                 elif initialSeg[0] in ["(", ")"]:
-                    inputStr.put(Paren(initialSeg))
+                    self.tokens.append(Paren(initialSeg))
                 else:
-                    raise Exception("Somehow this is a reserved symbol but not either kind of reserved symbol. You've fucked up grace.")
+                    raise Exception("Somehow this is a reserved symbol but not some kind of reserved symbol. You've fucked up grace.")
+                inputStr = inputStr[1:]
             elif(re.match(numVarRegex, inputStr)):
-                self.tokens.put(Term(re.search(numVarRegex, inputStr).group(0)))
+                self.tokens.append(Term(re.search(numVarRegex, inputStr).group(0)))
                 inputStr = re.sub(numVarRegex, "", inputStr)
             elif(re.match(initialNumRegex, inputStr)):
-                self.tokens.put(NumTerm(re.match(initialNumRegex, inputStr).group(0)))
+                self.tokens.append(NumTerm(re.match(initialNumRegex, inputStr).group(0)))
                 inputStr = re.sub(initialNumRegex, "", inputStr)
             else:
                 raise Exception(f"Invalid character {inputStr[0]} in input string.")
-        self.process
+        #self.process
 
-    def __str__(self):
-        newQueue = Queue(0)
+    def __repr__(self):
         out = ""
-        while(not self.tokens.empty()):
-            token = self.tokens.get()
-            out+= str(token)
-            newQueue.put(token)
-        self.tokens = newQueue
-        return out
+        newQueue= copy.deepcopy(self.tokens)
+        while newQueue:
+            token = newQueue.popleft()
+            out+= f"{str(token)} "
+        return out[:-1]
 
     # Defining formal operations on Expressions
 
     def __add__(self, addend):
-        return Expression(f"{self} + {addend}")
+        out = copy.deepcopy(self.tokens)
+        out.append(GOperator("+"))
+        return Expression(inputTokens=(out + addend.tokens))
 
     def __sub__(self, subtrahend):
         return Expression(f"{self} - {subtrahend}")
@@ -106,33 +107,33 @@ class Expression:
         self.__linearToRPN()
 
     def __stackToStr(self, stackToPrint):
-        temp = Queue()
+        temp = deque()
         out = ""
-        while(not stackToPrint.empty()):
-               token = stackToPrint.get()
+        while stackToPrint:
+               token = stackToPrint.popleft()
                out += token
-               temp.put(token)
+               temp.append(token)
         stackToPrint = temp
         return out
 
     def __evaluateRPN(self): 
         #TODO: Rebuild about new symbol implementation
-        evalStack = LifoQueue()
-        outQueue = Queue()
+        evalStack = deque()
+        outQueue = deque()
 
-        while not(self.tokens.empty()):
-            token = self.tokens.get()
+        while not len(self.tokens) == 0:
+            token = self.tokens.popleft()
 
             if not token in self.RESERVED_SYMBOLS:
-                evalStack.put(token)
+                evalStack.append(token)
             elif bool(re.match(r"\s", token)):
                 continue
             else:
                 args = ""
                 for i in range(0, self.OPERATOR_VALENCE[token]):
 
-                    if(not evalStack.empty()):
-                        args += evalStack.get()
+                    if evalStack:
+                        args += evalStack.popleft()
 
                     else:
                         raise Exception(f"Insufficient arguments for token {token}. \nArguments supplied: {args[::-1]}")
@@ -142,16 +143,16 @@ class Expression:
                 if(all(type(x) == str for x in args)
                     and all(bool(re.match("^\d+\.?\d*", y)) for y in args)):
                    eval = self.FUNCTION_CALLS[token](*list(map(lambda x: float(x), args)))
-                   evalStack.put(eval)
+                   evalStack.append(eval)
 
                 else:
                     continue
                     # How do I write this in a way that doesn't have weird reversing issues? I can't reverse at each step obvious or weirdness ensues. The nested set approach is probably the best one tbqph
         
-        bounceStack = LifoQueue()
+        bounceStack = deque()
         newTokens = ""
-        while(not evalStack.empty()):
-            temp = evalStack.get()
+        while evalStack:
+            temp = evalStack.popleft()
             newTokens = temp + newTokens
 
         self = Expression(newTokens)
@@ -164,70 +165,70 @@ class Expression:
     # Converts a linear infix Expression into Reverse-Polish Notation
     # According to the Shunting-Yard Algorithm
     def __linearToRPN(self):
-        opStack = LifoQueue(0)
-        outQueue = Queue(0)
-        while(not self.tokens.empty()):
-            token = self.tokens.get()
+        opStack = deque()
+        outQueue = deque()
+        while self.tokens:
+            token = self.tokens.popleft()
             if issubclass(type(token), Term):
-                outQueue.put(token)
+                outQueue.append(token)
 
             elif token in GOperator.FUNCTIONS:
-                opStack.put(token)
+                opStack.append(token)
             elif token in GOperator.OPERATORS:
-                if not opStack.empty():
-                    tempOp = opStack.get()
+                if opStack:
+                    tempOp = opStack.popleft()
                     while(tempOp in GOperator.OPERATORS): 
                         if(not tempOp == "("
                              and (GOperator.OPERATOR_PRECEDENCE[token]<GOperator.OPERATOR_PRECEDENCE[tempOp] 
                              or (GOperator.OPERATOR_PRECEDENCE[tempOp] == GOperator.OPERATOR_PRECEDENCE[token] and GOperator.OPERATOR_ASSOC[token] == "l"))
-                            and not opStack.empty()):
-                            outQueue.put(tempOp)
-                            opStack.put(token)
+                            and opStack):
+                            outQueue.append(tempOp)
+                            opStack.append(token)
                             break
                         else:
-                            outQueue.put(tempOp)
-                            if not opStack.empty():
-                                tempOp = opStack.get()
+                            outQueue.append(tempOp)
+                            if opStack:
+                                tempOp = opStack.popleft()
                             else:
                                 break
                     if type(tempOp) == Paren:
-                        opStack.put(tempOp)
-                opStack.put(token)
+                        opStack.append(tempOp)
+                opStack.append(token)
 
             elif type(token) == Paren:
                 if token.side == "l":
-                    opStack.put(token)
+                    opStack.append(token)
                 else:
-                    tempOp = opStack.get()
+                    tempOp = opStack.popleft()
                     while not type(tempOp == Paren) and tempOp.side == "l":
-                        if not opStack.empty():
-                            outQueue.put(tempOp)
-                            tempOp = opStack.get()
+                        if opStack:
+                            outQueue.append(tempOp)
+                            tempOp = opStack.popleft()
                         else:
                             raise Exception("Mismatched parentheses!")
                         
-                    if not opStack.empty():
-                        tempOp = opStack.get()
+                    if opStack:
+                        tempOp = opStack.popleft()
                         if tempOp in GOperator.OPERATORS.keys():
-                            outQueue.put(tempOp)
+                            outQueue.append(tempOp)
                         else:
-                            opStack.put(tempOp)
+                            opStack.append(tempOp)
             
-        while not opStack.empty():
-            tempOp = opStack.get()
+        while opStack:
+            tempOp = opStack.popleft()
             if type(tempOp == Paren):
                 raise Exception("Mismatched parentheses!")
-            outQueue.put(tempOp)
+            outQueue.append(tempOp)
         self.tokens = outQueue
 
-    def __cleanNums(self, q: Queue):
-        newQ = Queue()
-        while not q.empty():
-            temp = q.get()
+    def __cleanNums(self, q: deque):
+        newQ = deque()
+        while q:
+            temp = q.popleft()
             print(f"temp is {temp} in __cleanNums")
             if bool(re.match(r"^\d+\.?0*", temp)):
-                newQ.put(str(int(float(temp))))
+                newQ.append(str(int(float(temp))))
             else:
-                newQ.put(temp)
+                newQ.append(temp)
         return newQ
 

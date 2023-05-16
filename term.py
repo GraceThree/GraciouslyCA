@@ -36,13 +36,16 @@ class Term(gsymbol.GSymbol):
         factorBase = re.search(r"^.*\^?", factor.label).group(0)
         if base == None or factorBase == None:
             raise Exception(f"Okay what the hell grace how, mul version")
+        #If bases are equal, inserts a dummy exponent of 1 if exp is blank,
         if base == factorBase:
-            exp1, exp2  = re.search(expRegex, self.label).group(0), re.search(expRegex, factor.label).group(0)
+            exp1 = re.search(expRegex, self.label).group(0)
+            exp2 = re.search(expRegex, factor.label).group(0)
             [exp1, exp2] = map(lambda x: 1 if x == None else x[1:], [exp1, exp2])
             expTerm1 = self.__makeTerm(exp1)
             expTerm2 = self.__makeTerm(exp2)
             newExp = expTerm1 + expTerm2
-            if re.match(r"^\d+\.?0*$"): newExp.label = str(int(newExp.label))
+            if re.match(r"^\d+\.?0*$", newExp.label): newExp.label = str(int(newExp.label))
+            if re.match(r"^1\.?0*$", newExp.label): return Term(f"{base}")
             return Term(f"{base} ^ {newExp.label}")
         if type(factor) == NumTerm: return Term(f"{factor}{self}")
         return Term(f"{self}{factor}")
@@ -60,7 +63,8 @@ class Term(gsymbol.GSymbol):
             expTerm1 = self.__makeTerm(exp1)
             expTerm2 = self.__makeTerm(exp2)
             newExp = expTerm1 - expTerm2
-            if re.match(r"^\d+\.?0*$"): newExp.label = str(int(newExp.label))
+            if re.match(r"^\d+\.?0*$", newExp.label): newExp.label = str(int(newExp.label))
+            if re.match(r"^1\.?0*$", newExp.label): return Term(f"{base}")
             return Term(f"{base} ^ {newExp.label}")
         return Term(f"{self} / {divisor}")
     

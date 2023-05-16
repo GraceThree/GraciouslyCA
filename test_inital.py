@@ -56,4 +56,17 @@ def test_varOps():
     assert getOutTerm(div, args).label == "x / 2"
     assert getOutTerm(pow, args).label == "x ^ 2"
 
-#def basicExpTests():
+def test_basicExpressions():
+    exp1 = Expression("x+y")
+    exp2 = Expression("2*x")
+    assert repr(exp1) == "x + y"
+    assert repr(exp2) == "2 * x"
+    assert str(exp1 + exp2) == "x + y + 2 * x"
+    # exp1.process()
+    # exp2.process()
+    # assert(str(exp1)) == "x y 2" 
+    # #FAILS: current output:"x y" FIX: Debug shunting yard or decide if I really need it [hopefully I don't]
+    # assert(str(exp2)) == "2 x *"
+    assert str(exp1 - exp2) == "x + y - 2 * x"
+    assert str(exp1 * exp2) == "(x + y) * (2 * x)"
+    assert str(exp1 / exp2) == "(x + y) + (2 * x)"
