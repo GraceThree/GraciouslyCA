@@ -20,11 +20,13 @@ class GOperator(gsymbol.GSymbol):
         "tan": lambda x :math.tan(x), 
         "log": lambda x: math.log(x)}
     
-    OPERATOR_VALENCE = {"*":2, "-":2, "+":2, "/":2, "^":2, 
-                        "sin":1, "cos":1, "tan":1, "log":1}
+    OPERATOR_VALENCE = {
+        "*":2, "-":2, "+":2, "/":2, "^":2, 
+        "sin":1, "cos":1, "tan":1, "log":1}
     
-    OPERATOR_PRECEDENCE = {"*":3, "-":2, "+":2, "/":3, "^":4, 
-                           "sin":5, "cos":5, "tan":5, "log":5}
+    OPERATOR_PRECEDENCE = {
+        "*":3, "-":2, "+":2, "/":3, "^":4, 
+        "sin":5, "cos":5, "tan":5, "log":5}
     
     def __init__(self, label):
         super().__init__(label)
@@ -35,4 +37,5 @@ class GOperator(gsymbol.GSymbol):
     def act(self, args):
         if not len(args) == self.valence:
             raise Exception(f"Too many arguments passed to operator {self}. \nExpected {self.valence} but {len(args)} arguments were passed: \n{args}") 
+        print(self.action(*args).value)
         return self.action(*args)

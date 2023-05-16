@@ -18,9 +18,10 @@ class Term(gsymbol.GSymbol):
         super().__init__(label)
         #self.equalTerms = {self}
         self.equalExprs = {self.label}
+        self.value = None
 
     def __str__(self):
-        return re.match(r".+\..{0,5}", self.label).group(0)
+        return re.match(r".+\.?.{0,5}", self.label).group(0)
 
     def __add__(self, addend):
         return Term(self.label + " + " + addend.label)
@@ -47,9 +48,8 @@ class Term(gsymbol.GSymbol):
             return VarTerm(label)
         return Term(label)
     
-    #Two terms are equal if they are listed as equal to each other. If they have the same value, then they automatically will be
+    #Two terms are equal their label is in the others list of equal expressions. Somewhat crude, and TODO:probably should make this less stupid
     def __eq__(self, other):
-
         if other.label in self.equalExprs or self.label in other.equalExprs:
             self.equalExprs.add(other.label)
             other.equalExprs.add(self.label)
@@ -84,7 +84,7 @@ class NumTerm(Term):
 
     #Checks if self ** exponent < 10^6, otherwise makes into a single term self ^ exponent
     def __pow__(self, exponent):
-        if exponent.value * math.log(self.value, 6) < 10:
+        if exponent.value * math.log(self.value, 10) < 7:
            return NumTerm(f"{self.value ** exponent.value}")
         return Term(f"{self.value} ^ {exponent.value}")
     
